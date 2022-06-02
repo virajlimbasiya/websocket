@@ -30,7 +30,7 @@
 
 #include <websocketpp/common/memory.hpp>
 #include <websocketpp/frame.hpp>
-
+#include <cstring>
 #include <string>
 
 namespace websocketpp {
@@ -255,6 +255,14 @@ public:
         return m_payload;
     }
 
+    void copy_buffer(char buf[], int len){
+
+        // std::cout<<(buf)<<std::endl;
+        m_buff = (char*)malloc((len+1)*sizeof(char));
+        memcpy(m_buff,buf,len);
+        m_buff[len] = '\0';
+    }
+
     /// Set payload data
     /**
      * Set the message buffer's payload to the given value.
@@ -264,6 +272,11 @@ public:
     void set_payload(std::string const & payload) {
         m_payload = payload;
     }
+
+    char* get_charpayload() const{
+        return m_buff;
+    }
+
 
     /// Set payload data
     /**
@@ -328,6 +341,7 @@ private:
     std::string                 m_extension_data;
     std::string                 m_payload;
     frame::opcode::value        m_opcode;
+    char*                       m_buff;
     bool                        m_prepared;
     bool                        m_fin;
     bool                        m_terminal;

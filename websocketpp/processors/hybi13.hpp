@@ -819,6 +819,7 @@ protected:
             }
         } else {
             // No compression, straight copy
+            m_current_msg->msg_ptr->copy_buffer({reinterpret_cast<char *>(buf)},len);
             out.append(reinterpret_cast<char *>(buf),len);
         }
 

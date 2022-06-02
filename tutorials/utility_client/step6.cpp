@@ -33,6 +33,7 @@
 
 #include <websocketpp/common/thread.hpp>
 #include <websocketpp/common/memory.hpp>
+#include<websocserver.h>
 
 #include <cstdlib>
 #include <iostream>
@@ -56,7 +57,7 @@ public:
 
     void on_open(client * c, websocketpp::connection_hdl hdl) {
         m_status = "Open";
-
+        
         client::connection_ptr con = c->get_con_from_hdl(hdl);
         m_server = con->get_response_header("Server");
     }
@@ -81,7 +82,8 @@ public:
 
     void on_message(websocketpp::connection_hdl, client::message_ptr msg) {
         if (msg->get_opcode() == websocketpp::frame::opcode::text) {
-            m_messages.push_back("<< " + msg->get_payload());
+            //std::cout<<((std::string)msg->get_charpayload()).substr(0,3);
+            m_messages.push_back("<< " + (std::string)msg->get_charpayload());
         } else {
             m_messages.push_back("<< " + websocketpp::utility::to_hex(msg->get_payload()));
         }
@@ -131,10 +133,19 @@ std::ostream & operator<< (std::ostream & out, connection_metadata const & data)
 
 class websocket_endpoint {
 public:
+    explicit websocket_endpoint (websocketpp::lib::shared_ptr<websocserver> s1) : m_next_id(0) {
+        m_endpoint.clear_access_channels(websocketpp::log::alevel::all);
+        m_endpoint.clear_error_channels(websocketpp::log::elevel::all);
+        s = s1;
+        m_endpoint.init_asio();
+        m_endpoint.start_perpetual();
+
+        m_thread = websocketpp::lib::make_shared<websocketpp::lib::thread>(&client::run, &m_endpoint);
+    }
+
     websocket_endpoint () : m_next_id(0) {
         m_endpoint.clear_access_channels(websocketpp::log::alevel::all);
         m_endpoint.clear_error_channels(websocketpp::log::elevel::all);
-
         m_endpoint.init_asio();
         m_endpoint.start_perpetual();
 
@@ -222,9 +233,9 @@ public:
         }
     }
 
-    void send(int id, std::string message) {
+    void send(int id, const char message[]) {
         websocketpp::lib::error_code ec;
-        
+
         con_list::iterator metadata_it = m_connection_list.find(id);
         if (metadata_it == m_connection_list.end()) {
             std::cout << "> No connection found with id " << id << std::endl;
@@ -253,23 +264,33 @@ private:
 
     client m_endpoint;
     websocketpp::lib::shared_ptr<websocketpp::lib::thread> m_thread;
-
+    websocketpp::lib::shared_ptr<websocserver> s;
     con_list m_connection_list;
     int m_next_id;
 };
 
 int main() {
     bool done = false;
-    std::string input;
+    char input[100];
+    websocserver s;
     websocket_endpoint endpoint;
+
+
+
+    // std::getline(std::cin, input);
+    // int id = endpoint.connect(input.substr(8));
+    // if (id != -1) {
+    //     std::cout << "> Created connection with id " << id << std::endl;
+    // }
+    // std::cout<<id<<std::endl;
 
     while (!done) {
         std::cout << "Enter Command: ";
-        std::getline(std::cin, input);
+        std::cin>>input;
 
         if (input == "quit") {
             done = true;
-        } else if (input == "help") {
+        } else if ((std::string)input == "help") {
             std::cout
                 << "\nCommand List:\n"
                 << "connect <ws uri>\n"
@@ -279,36 +300,38 @@ int main() {
                 << "help: Display this help text\n"
                 << "quit: Exit the program\n"
                 << std::endl;
-        } else if (input.substr(0,7) == "connect") {
-            int id = endpoint.connect(input.substr(8));
+        } else if ((std::string)input == "connect") {
+            std::string addr;
+            std::cin>>addr;
+            int id = endpoint.connect(addr);
             if (id != -1) {
                 std::cout << "> Created connection with id " << id << std::endl;
             }
-        } else if (input.substr(0,4) == "send") {
-            std::stringstream ss(input);
+        } else if ((std::string)input == "send") {
             
-            std::string cmd;
             int id;
-            std::string message;
-            
-            ss >> cmd >> id;
-            std::getline(ss,message);
+            std::cin>>id;
+            char message[100];
+            std::cin.ignore();
+            std::cin.getline(message,100);
+            message[strlen(message)] = '\0';
             
             endpoint.send(id, message);
-        } else if (input.substr(0,5) == "close") {
-            std::stringstream ss(input);
+        } else if ((std::string)input == "close") {
             
-            std::string cmd;
             int id;
+            std::cin>>id;
             int close_code = websocketpp::close::status::normal;
             std::string reason;
             
-            ss >> cmd >> id >> close_code;
-            std::getline(ss,reason);
+            std::cin>> close_code;
+            std::cin.ignore();
+            std::getline(std::cin,reason);
             
             endpoint.close(id, close_code, reason);
-        } else if (input.substr(0,4) == "show") {
-            int id = atoi(input.substr(5).c_str());
+        } else if ((std::string)input == "show") {
+            int id;
+            std::cin>>id;
 
             connection_metadata::ptr metadata = endpoint.get_metadata(id);
             if (metadata) {
