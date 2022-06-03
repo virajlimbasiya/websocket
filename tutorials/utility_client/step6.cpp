@@ -33,7 +33,6 @@
 
 #include <websocketpp/common/thread.hpp>
 #include <websocketpp/common/memory.hpp>
-#include<websocserver.h>
 
 #include <cstdlib>
 #include <iostream>
@@ -83,6 +82,7 @@ public:
     void on_message(websocketpp::connection_hdl, client::message_ptr msg) {
         if (msg->get_opcode() == websocketpp::frame::opcode::text) {
             //std::cout<<((std::string)msg->get_charpayload()).substr(0,3);
+            // std::cout<<(std::string)msg->get_charpayload();
             m_messages.push_back("<< " + (std::string)msg->get_charpayload());
         } else {
             m_messages.push_back("<< " + websocketpp::utility::to_hex(msg->get_payload()));
@@ -133,16 +133,6 @@ std::ostream & operator<< (std::ostream & out, connection_metadata const & data)
 
 class websocket_endpoint {
 public:
-    explicit websocket_endpoint (websocketpp::lib::shared_ptr<websocserver> s1) : m_next_id(0) {
-        m_endpoint.clear_access_channels(websocketpp::log::alevel::all);
-        m_endpoint.clear_error_channels(websocketpp::log::elevel::all);
-        s = s1;
-        m_endpoint.init_asio();
-        m_endpoint.start_perpetual();
-
-        m_thread = websocketpp::lib::make_shared<websocketpp::lib::thread>(&client::run, &m_endpoint);
-    }
-
     websocket_endpoint () : m_next_id(0) {
         m_endpoint.clear_access_channels(websocketpp::log::alevel::all);
         m_endpoint.clear_error_channels(websocketpp::log::elevel::all);
@@ -264,7 +254,6 @@ private:
 
     client m_endpoint;
     websocketpp::lib::shared_ptr<websocketpp::lib::thread> m_thread;
-    websocketpp::lib::shared_ptr<websocserver> s;
     con_list m_connection_list;
     int m_next_id;
 };
@@ -272,8 +261,15 @@ private:
 int main() {
     bool done = false;
     char input[100];
-    websocserver s;
     websocket_endpoint endpoint;
+    // std::cout << "Enter Command: ";
+    // std::cin>>input;
+    // std::string addr;
+    // std::cin>>addr;
+    // int id = endpoint.connect(addr);
+    // if (id != -1) {
+    //     std::cout << "> Created connection with id " << id << std::endl;
+    // }
 
 
 
@@ -342,7 +338,7 @@ int main() {
         } else {
             std::cout << "> Unrecognized Command" << std::endl;
         }
-    }
+    } 
 
     return 0;
 }

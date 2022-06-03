@@ -110,7 +110,7 @@ std::ostream &operator<<(std::ostream &out, server_metadata const &data){
 int main(){
     websocserver sp;
     std::shared_ptr<websocserver> s = std::make_shared<websocserver>();
-    okexclient cli(s);
+    // okexclient cli(s);
     boost::asio::io_service mainEventLoop;
 
     s->connect([&mainEventLoop,&s](Clientconn conn){

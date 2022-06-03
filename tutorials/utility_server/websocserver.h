@@ -97,6 +97,8 @@ class websocserver: std::enable_shared_from_this<websocserver>{
         void sendmessage(Clientconn conn, const char message[], const char messagety[]);
         void publishtoall(const char message[], const char messagety[]);
         void publishdata(vector<int> connList, const char message[], const char messagety[]);
+        void publishTrade(const char message[], const char messagety[]);
+        void publishOrderBook(const char message[], const char messagety[]);
     protected:
         void onOpen(Clientconn conn);
         void onClose(Clientconn conn);
@@ -117,12 +119,12 @@ class websocserver: std::enable_shared_from_this<websocserver>{
 		map<string, vector<std::function<void(Clientconn,const char [])>>> messageHandlers;
 };
 
-class okexclient{
-    public:
-        okexclient(std::shared_ptr<websocserver>s1): s(s1){
-            // s = s1;
-        }
+// class okexclient{
+//     public:
+//         okexclient(std::shared_ptr<websocserver>s1): s(s1){
+//             // s = s1;
+//         }
         
-    protected:
-        std::shared_ptr<websocserver> s;
-};
+//     protected:
+//         std::shared_ptr<websocserver> s;
+// };

@@ -41,6 +41,8 @@ typedef websocketpp::lib::shared_ptr<websocketpp::lib::asio::ssl::context> conte
 
 using websocketpp::lib::placeholders::_1;
 using websocketpp::lib::placeholders::_2;
+
+//sing std::bind;
 using websocketpp::lib::bind;
 using namespace std;
 struct okxlevelupdate{
@@ -64,26 +66,7 @@ struct Tradeupdate
 
 
 void getparsed(char m_buff[], int strLength, okxlevelupdate& okx){
-    // int i=0;
-    // while(i<strLength){
-    //     if(m_buff[i]=='{'||m_buff[i]=='}')i++;
 
-    //     if(i==strLength)break;
-    //     while(m_buff[i]==' '){
-    //         i++;
-    //         if(i==strLength)break;
-    //     }
-    //     string key = readkey(m_buff, i, strLength);
-    //     while(m_buff[i]==':'||m_buff[i]==' ')i++;
-    //     string value = readval(m_buff,i,strLength,key);
-    //     //cout<<key<<":"<<value<<endl;
-    //     while (m_buff[i]==','||m_buff[i]==' '||m_buff[i]=='}'){
-    //         i++;
-    //         if(i==strLength)break;
-    //     }
-    // }
-
-    
 
     if(m_buff[19]=='b'){
         okxlevelupdate okx;
@@ -297,48 +280,61 @@ void getparsed(char m_buff[], int strLength, okxlevelupdate& okx){
 
 
 
+    std::string hostname = "ws.okex.com";
+    std::string port = "8443";
+    std::string uri = "wss://ws.okex.com:8443/ws/v5/public";
+
+
+//void connect(client &c);
 
 class okexclient{
-    public:
-        okexclient(std::shared_ptr<websocserver>s1): s(s1){
+    public:    
+   // context_ptr on_tls_init(const char * hostname, websocketpp::connection_hdl) ;
+
+    okexclient(std::shared_ptr<websocserver>s1): s(s1){ 
+        // connect(c);
+    }
+    void connect(){
         c.set_access_channels(websocketpp::log::alevel::all);
         c.clear_access_channels(websocketpp::log::alevel::frame_payload);
         c.set_error_channels(websocketpp::log::elevel::all);
 
-        // Initialize ASIO
+        // // Initialize ASIO
         c.init_asio();
 
-        // Register our message handler
-        c.set_message_handler(&on_message);
-        c.set_open_handler(&on_open);
-        c.set_tls_init_handler(bind(&on_tls_init, hostname.c_str(), ::_1));
+        // // Register our message handler
+        c.set_message_handler(websocketpp::lib::bind(&okexclient::on_message,this,placeholders::_1,placeholders::_2));
+        c.set_open_handler(websocketpp::lib::bind(&okexclient::on_open,this,placeholders::_1));
+        c.set_tls_init_handler(websocketpp::lib::bind(&okexclient::on_tls_init, this, placeholders::_1));
 
         websocketpp::lib::error_code ec;
         client::connection_ptr con = c.get_connection(uri, ec);
-
-            // s = s1;
+        if (ec) {
+            std::cout << "could not create connection because: " << ec.message() << std::endl;
+            return;
         }
+        c.connect(con);
+        c.get_alog().write(websocketpp::log::alevel::app, "Connecting to " + uri);            
+            // s = s1;
+        c.run();
 
-    void on_message(websocketpp::connection_hdl, client::message_ptr msg) {
-        //std::cout << msg->get_payload() << std::endl;
-        char *char_array =msg->get_charpayload();
-        int n = strlen(char_array);
-        s->publishtoall(char_array,"serverMessage");
-        // declaring character array
-        // okxlevelupdate okx;
-        // getparsed(char_array,n,okx);
+        //m_thread = websocketpp::lib::make_shared<websocketpp::lib::thread>(&client::run, &c);
     }
 
 
+    void on_message(websocketpp::connection_hdl , client::message_ptr msg) {
+        char *char_array =msg->get_charpayload();
+        int n = strlen(char_array);
+        if(char_array[19]=='t')s->publishTrade(char_array,"serverMessage");
+        else if(char_array[19]=='b')s->publishOrderBook(char_array,"serverMessage");
+    }
 
     void on_open(websocketpp::connection_hdl hdl) {
-            //m_open = std::chrono::high_resolution_clock::now();
-            c.send(hdl, "{\"op\": \"subscribe\",\"args\": [{\"channel\": \"books\",\"instId\": \"BTC-USDT\"}]}", websocketpp::frame::opcode::text);
-            c.send(hdl, "{\"op\": \"subscribe\",\"args\": [{\"channel\": \"trades\",\"instId\": \"BTC-USDT-SWAP\"}]}", websocketpp::frame::opcode::text);
-            std::cout<<"heron on open"<<std::endl;
-        }
+        c.send(hdl, "{\"op\": \"subscribe\",\"args\": [{\"channel\": \"books\",\"instId\": \"BTC-USDT\"}]}", websocketpp::frame::opcode::text);
+        c.send(hdl, "{\"op\": \"subscribe\",\"args\": [{\"channel\": \"trades\",\"instId\": \"BTC-USDT-SWAP\"}]}", websocketpp::frame::opcode::text);
+    }
 
-    context_ptr on_tls_init(const char * hostname, websocketpp::connection_hdl) {
+    context_ptr on_tls_init(websocketpp::connection_hdl) {
         context_ptr ctx = websocketpp::lib::make_shared<boost::asio::ssl::context>(boost::asio::ssl::context::sslv23);
 
         try {
@@ -355,24 +351,15 @@ class okexclient{
         return ctx;
     }
     private:
+
     std::shared_ptr<websocserver> s;
     client c;
+    std::shared_ptr<websocketpp::lib::thread> m_thread;
 };
 
+
+
 int main(int argc, char* argv[]) {
-
-    std::string hostname = "ws.okex.com";
-    std::string port = "8443";
-
-   /*  if (argc == 3) {
-        hostname = argv[1];
-        port = argv[2];
-    } else {
-        std::cout << "Usage: print_server_tls <hostname> <port>" << std::endl;
-        return 1;
-    } */
-    
-    std::string uri = "wss://ws.okex.com:8443/ws/v5/public";
 
     std::shared_ptr<websocserver> s = std::make_shared<websocserver>(); 
 
@@ -385,25 +372,23 @@ int main(int argc, char* argv[]) {
             std::cout<<"connection opened "<<s->numOfConn()<<" connection(s) made\n";
         });
     });
+    std::thread serverThread([&s](){s->run(9001);});
 
     okexclient c(s);
+    c.connect();
+
 
     try {
         // Set logging to be pretty verbose (everything except message payloads)
 
-        if (ec) {
-            std::cout << "could not create connection because: " << ec.message() << std::endl;
-            return 0;
-        }
+
         // Note that connect here only requests a connection. No network messages are
         // exchanged until the event loop starts running in the next line.
-        c.connect(con);
-        c.get_alog().write(websocketpp::log::alevel::app, "Connecting to " + uri);
+
 
         // Start the ASIO io_service run loop
         // this will cause a single connection to be made to the server. c.run()
         // will exit when this connection is closed.
-        c.run();
         //m_endpoint.send(hdl, "", websocketpp::frame::opcode::text);
 
     } catch (websocketpp::exception const & e) {

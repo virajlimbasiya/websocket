@@ -87,6 +87,20 @@ void websocserver::sendmessage(Clientconn conn, const char message[], const char
     this->endpoint.send(conn,message,websocketpp::frame::opcode::text);
 }
 
+void websocserver::publishTrade(const char message[], const char messagety[]){
+	for(auto it: this->tradeHandlers){
+		this->sendmessage(it,message, messagety);
+	}
+}
+
+void websocserver::publishOrderBook(const char message[], const char messagety[]){
+	for(auto it: this->bookHandlers){
+		this->sendmessage(it,message, messagety);
+	}
+}
+
+
+
 void websocserver::publishdata(vector<int> connList, const char message[], const char messagety[]){
 	std::lock_guard<std::mutex> lock(mutedConnList);
     for(auto i: connList){
@@ -97,8 +111,8 @@ void websocserver::publishdata(vector<int> connList, const char message[], const
 
 void websocserver::publishtoall(const char message[], const char messagety[]){
     std::lock_guard<std::mutex> lock(mutedConnList);
-    for(auto conn: openConn){
-        this->sendmessage(conn,message,messagety);
+    for(auto it: this->connHandlers){
+        this->sendmessage(it.second,message,messagety);
     }
 }
 
